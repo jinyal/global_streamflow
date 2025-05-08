@@ -7,42 +7,46 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
     html, body { margin: 0; height: 100%; }
-    #map { width: 100%; height: 100vh; }
+    #map { width: 100%; height: 70vh; }
+    #chart { width: 100%; height: 30vh; }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="chart"></div>
+
   <script>
-    let streamflowTrace;
-
-    // Load streamflow data
     fetch('global_streamflow.csv')
-      .then(response => response.text())
-      .then(csvData => {
-        const parsed = Papa.parse(csvData, {
-          header: true,
-          dynamicTyping: true
-        }).data;
+      .then(res => res.text())
+      .then(csvText => {
+        const data = Papa.parse(csvText, { header: true, dynamicTyping: true }).data;
 
-        const lons = parsed.map(row => row['long_pp']);
-        const lats = parsed.map(row => row['lat_pp']);
-        const nse = parsed.map(row => row['nse']);
-        const text = parsed.map(row =>
+        const lons = data.map(row => row.long_pp);
+        const lats = data.map(row => row.lat_pp);
+        const nse = data.map(row => row.nse);
+        const ids = data.map(row => row.gauge_id);
+        const areas = data.map(row => row['area_cal_j']);
+
+        const text = data.map(row =>
           `Gauge ID: ${row.gauge_id}` +
           `<br>NSE: ${row.nse?.toFixed(2)}` +
           `<br>KGE: ${row.kge?.toFixed(2)}` +
-          `<br>Area: ${row.area_cal_j?.toFixed(2)} km²` +
-          `<br>Annual Precip.: ${row.pre_mm_syr?.toFixed(2)} mm` +
-          `<br>Annual min Temp.: ${(row.tmp_dc_smn / 10)?.toFixed(2)} °C` +
-          `<br>Annual max Temp.: ${(row.tmp_dc_smx / 10)?.toFixed(2)} °C`
+          `<br>Area: ${row['area_cal_j']?.toFixed(2)} km²` +
+          `<br>Annual Precip.: ${row['pre_mm_syr']?.toFixed(2)} mm` +
+          `<br>Annual min Temp.: ${(row['tmp_dc_smn'] / 10)?.toFixed(2)} °C` +
+          `<br>Annual max Temp.: ${(row['tmp_dc_smx'] / 10)?.toFixed(2)} °C`
         );
 
-        streamflowTrace = {
+        const trace = {
           type: 'scattergeo',
           mode: 'markers',
           lon: lons,
           lat: lats,
           text: text,
+          customdata: data.map(row => ({
+            id: row.gauge_id,
+            area: row.area_cal_j
+          })),
           marker: {
             size: 5,
             color: nse,
@@ -62,54 +66,58 @@
           }
         };
 
-        // After streamflow data is ready, load the boundary geojson
-        loadAdminBoundaries();
-      });
+        const layout = {
+          geo: {
+            scope: 'world',
+            showland: true,
+            landcolor: 'rgb(217, 217, 217)',
+            showocean: true,
+            oceancolor: 'rgb(204, 229, 255)',
+            showcountries: true,
+            countrycolor: 'rgb(100, 100, 100)',
+            showframe: false,
+            projection: { type: 'natural earth' }
+          },
+          margin: { t: 0, r: 0, l: 0, b: 0 }
+        };
 
-    function loadAdminBoundaries() {
-      fetch('admin1_boundaries.geojson')
-        .then(response => response.json())
-        .then(geojsonData => {
-          const boundaryTrace = {
-            type: 'choropleth',
-            geojson: geojsonData,
-            locations: geojsonData.features.map((_, i) => i),
-            z: geojsonData.features.map(() => 1),
-            showscale: false,
-            hoverinfo: 'skip',
-            marker: {
-              line: {
-                color: 'gray',
-                width: 0.5
-              }
-            },
-            colorscale: [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]
-          };
+        Plotly.newPlot('map', [trace], layout);
 
-          const layout = {
-            geo: {
-              scope: 'world',
-              showland: true,
-              landcolor: 'rgb(217, 217, 217)',
-              showocean: true,
-              oceancolor: 'rgb(204, 229, 255)',
-              showlakes: true,
-              lakecolor: 'rgb(173, 216, 230)',
-              showcountries: true,
-              countrycolor: 'rgb(100, 100, 100)',
-              showsubunits: true,
-              subunitcolor: 'rgba(150,150,150,0.5)',
-              showframe: false,
-              projection: {
-                type: 'natural earth'
-              }
-            },
-            margin: { t: 0, r: 0, b: 0, l: 0 }
-          };
+        // Click handler
+        document.getElementById('map').on('plotly_click', function (event) {
+          const point = event.points[0];
+          const gaugeId = point.customdata.id;
+          const area_km2 = point.customdata.area;
 
-          Plotly.newPlot('map', [boundaryTrace, streamflowTrace], layout);
+          const file = `obs_preds/${gaugeId}_output.csv`;
+          fetch(file)
+            .then(res => res.text())
+            .then(csvText => {
+              const parsed = Papa.parse(csvText, { header: true, dynamicTyping: true }).data;
+              const dates = parsed.map(d => d.date);
+              const obs = parsed.map(d => d.obs * area_km2 / 86.4);   // mm/day -> cms
+              const pred = parsed.map(d => d.pred * area_km2 / 86.4); // mm/day -> cms
+
+              const trace1 = {
+                x: dates, y: obs,
+                name: 'Observed (cms)',
+                mode: 'lines'
+              };
+              const trace2 = {
+                x: dates, y: pred,
+                name: 'Predicted (cms)',
+                mode: 'lines'
+              };
+              Plotly.newPlot('chart', [trace1, trace2], {
+                title: `Gauge ${gaugeId}: Obs vs Pred (cms)`,
+                margin: { t: 40 }
+              });
+            })
+            .catch(err => {
+              document.getElementById('chart').innerHTML = `<p style="color:red;padding:10px">Failed to load data for Gauge ID ${gaugeId}</p>`;
+            });
         });
-    }
+      });
   </script>
 </body>
 </html>
