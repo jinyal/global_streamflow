@@ -13,6 +13,9 @@
 <body>
   <div id="map"></div>
   <script>
+    let streamflowTrace;
+
+    // Load streamflow data
     fetch('global_streamflow.csv')
       .then(response => response.text())
       .then(csvData => {
@@ -34,7 +37,7 @@
           `<br>Annual max Temp.: ${(row.tmp_dc_smx / 10)?.toFixed(2)} °C`
         );
 
-        const trace = {
+        streamflowTrace = {
           type: 'scattergeo',
           mode: 'markers',
           lon: lons,
@@ -59,29 +62,54 @@
           }
         };
 
-        const layout = {
-          geo: {
-            scope: 'world',
-            showland: true,
-            landcolor: 'rgb(217, 217, 217)',
-            showocean: true,
-            oceancolor: 'rgb(204, 229, 255)',
-            showlakes: true,
-            lakecolor: 'rgb(173, 216, 230)',
-            showcountries: true,
-            countrycolor: 'rgb(100, 100, 100)',
-            showsubunits: true,
-            subunitcolor: 'rgba(150,150,150,0.5)', // lighter & semi-transparent for "dashed" look
-            showframe: false,
-            projection: {
-              type: 'natural earth'
-            }
-          },
-          margin: { t: 0, r: 0, l: 0, b: 0 }
-        };
-
-        Plotly.newPlot('map', [trace], layout);
+        // After streamflow data is ready, load the boundary geojson
+        loadAdminBoundaries();
       });
+
+    function loadAdminBoundaries() {
+      fetch('admin1_boundaries.geojson')
+        .then(response => response.json())
+        .then(geojsonData => {
+          const boundaryTrace = {
+            type: 'choropleth',
+            geojson: geojsonData,
+            locations: geojsonData.features.map((_, i) => i),
+            z: geojsonData.features.map(() => 1),
+            showscale: false,
+            hoverinfo: 'skip',
+            marker: {
+              line: {
+                color: 'gray',
+                width: 0.5
+              }
+            },
+            colorscale: [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0)']]
+          };
+
+          const layout = {
+            geo: {
+              scope: 'world',
+              showland: true,
+              landcolor: 'rgb(217, 217, 217)',
+              showocean: true,
+              oceancolor: 'rgb(204, 229, 255)',
+              showlakes: true,
+              lakecolor: 'rgb(173, 216, 230)',
+              showcountries: true,
+              countrycolor: 'rgb(100, 100, 100)',
+              showsubunits: true,
+              subunitcolor: 'rgba(150,150,150,0.5)',
+              showframe: false,
+              projection: {
+                type: 'natural earth'
+              }
+            },
+            margin: { t: 0, r: 0, b: 0, l: 0 }
+          };
+
+          Plotly.newPlot('map', [boundaryTrace, streamflowTrace], layout);
+        });
+    }
   </script>
 </body>
 </html>
