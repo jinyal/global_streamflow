@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Global Streamflow Map</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #map { width: 100%; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    fetch('results.csv')
+      .then(response => response.text())
+      .then(csvData => {
+        const parsed = Papa.parse(csvData, {
+          header: true,
+          dynamicTyping: true
+        }).data;
+
+        const lons = parsed.map(row => row['long_pp']);
+        const lats = parsed.map(row => row['lat_pp']);
+        const nse = parsed.map(row => row['nse']);
+        const text = parsed.map(row =>
+          `Gauge ID: ${row.gauge_id}` +
+          `<br>NSE: ${row.nse?.toFixed(2)}` +
+          `<br>KGE: ${row.kge?.toFixed(2)}` +
+          `<br>Area: ${row.area_cal_j?.toFixed(2)} km²` +
+          `<br>Annual Precip.: ${row.pre_mm_syr?.toFixed(2)} mm` +
+          `<br>Annual min Temp.: ${(row.tmp_dc_smn / 10)?.toFixed(2)} °C` +
+          `<br>Annual max Temp.: ${(row.tmp_dc_smx / 10)?.toFixed(2)} °C`
+        );
+
+        Plotly.newPlot('map', [{
+          type: 'scattergeo',
+          mode: 'markers',
+          lon: lons,
+          lat: lats,
+          text: text,
+          marker: {
+            size: 5,
+            color: nse,
+            colorscale: 'RdBu',
+            cmin: -1,
+            cmax: 1,
+            colorbar: {
+              title: 'NSE',
+              tickmode: 'array',
+              len: 0.6,
+              thickness: 15
+            },
+            line: {
+              width: 0.25,
+              color: 'black'
+            }
+          }
+        }], {
+          geo: { scope: 'world' },
+          margin: { t: 0, r: 0, b: 0, l: 0 }
+        });
+      });
+  </script>
+</body>
+</html>
+
