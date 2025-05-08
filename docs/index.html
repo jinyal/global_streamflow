@@ -100,16 +100,17 @@
 
               const trace1 = {
                 x: dates, y: obs,
-                name: 'Observed (cms)',
+                name: 'Observation',
                 mode: 'lines'
               };
               const trace2 = {
                 x: dates, y: pred,
-                name: 'Predicted (cms)',
+                name: 'Prediction',
                 mode: 'lines'
               };
               Plotly.newPlot('chart', [trace1, trace2], {
-                title: `Gauge ${gaugeId}: Obs vs Pred (cms)`,
+                title: `Gauge ${gaugeId}`,
+                yaxis: {title: 'Streamflow (cms)'},
                 margin: { t: 40 }
               });
             })
