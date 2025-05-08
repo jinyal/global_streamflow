@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Global Streamflow Map</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
     html, body { margin: 0; height: 100%; }
@@ -34,7 +34,7 @@
           `<br>Annual max Temp.: ${(row.tmp_dc_smx / 10)?.toFixed(2)} °C`
         );
 
-        Plotly.newPlot('map', [{
+        const trace = {
           type: 'scattergeo',
           mode: 'markers',
           lon: lons,
@@ -57,12 +57,31 @@
               color: 'black'
             }
           }
-        }], {
-          geo: { scope: 'world' },
-          margin: { t: 0, r: 0, b: 0, l: 0 }
-        });
+        };
+
+        const layout = {
+          geo: {
+            scope: 'world',
+            showland: true,
+            landcolor: 'rgb(217, 217, 217)',
+            showocean: true,
+            oceancolor: 'rgb(204, 229, 255)',
+            showlakes: true,
+            lakecolor: 'rgb(173, 216, 230)',
+            showcountries: true,
+            countrycolor: 'rgb(100, 100, 100)',
+            showsubunits: true,
+            subunitcolor: 'rgb(150,150,150)',
+            showframe: false,
+            projection: {
+              type: 'natural earth'
+            }
+          },
+          margin: { t: 0, r: 0, l: 0, b: 0 }
+        };
+
+        Plotly.newPlot('map', [trace], layout);
       });
   </script>
 </body>
 </html>
-
