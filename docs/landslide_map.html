@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <title>Landslide Map</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     #map { height: 100vh; width: 100%; }
   </style>
@@ -14,38 +16,43 @@
   <div id="map"></div>
 
   <script>
-    // Initialize map
     const map = L.map('map').setView([0, 0], 2);
 
-    // Add basemap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Load CSV
+    const markers = L.markerClusterGroup({
+      maxClusterRadius: 50, // tighter clusters
+      showCoverageOnHover: false,
+      disableClusteringAtZoom: 8 // show individual points when zoomed in
+    });
+
     Papa.parse('nasa_global_landslide_catalog_point_0507.csv', {
       download: true,
       header: true,
       dynamicTyping: true,
       complete: function(results) {
-        const data = results.data;
-
-        data.forEach(row => {
+        results.data.forEach(row => {
           if (row.latitude && row.longitude) {
             const marker = L.circleMarker([row.latitude, row.longitude], {
-              radius: 4,
-              color: 'red',
-              fillOpacity: 0.7
+              radius: 3,
+              color: '#cc0000',
+              weight: 0.5,
+              fillOpacity: 0.8
             });
 
             const tooltip = `
               <strong>Event Date:</strong> ${row.event_date}<br>
-              <strong>Lat, Lon:</strong> ${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}
+              <strong>Location:</strong> (${row.latitude.toFixed(2)}, ${row.longitude.toFixed(2)})
             `;
 
-            marker.bindTooltip(tooltip).addTo(map);
+            marker.bindTooltip(tooltip);
+            markers.addLayer(marker);
           }
         });
+
+        map.addLayer(markers);
       }
     });
   </script>
