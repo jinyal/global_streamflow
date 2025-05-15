@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Landslide Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <style>
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([0, 0], 2);
+
+    // Add basemap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Load CSV
+    Papa.parse('nasa_global_landslide_catalog_point_0507.csv', {
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      complete: function(results) {
+        const data = results.data;
+
+        data.forEach(row => {
+          if (row.latitude && row.longitude) {
+            const marker = L.circleMarker([row.latitude, row.longitude], {
+              radius: 4,
+              color: 'red',
+              fillOpacity: 0.7
+            });
+
+            const tooltip = `
+              <strong>Event Date:</strong> ${row.event_date}<br>
+              <strong>Lat, Lon:</strong> ${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}
+            `;
+
+            marker.bindTooltip(tooltip).addTo(map);
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
